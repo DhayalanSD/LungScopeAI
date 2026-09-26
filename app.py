@@ -1,3 +1,8 @@
+import os
+
+# Reduce TensorFlow logging before importing TensorFlow
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
+
 from flask import Flask, render_template, request
 from werkzeug.utils import secure_filename
 
@@ -6,8 +11,22 @@ from tensorflow.keras.preprocessing import image
 from tensorflow.keras.applications.efficientnet import preprocess_input
 
 import numpy as np
-import os
 import uuid
+
+
+# =========================================================
+# TensorFlow CPU Optimization
+# =========================================================
+
+# LungScopeAI only performs inference.
+# Limiting TensorFlow threads helps prevent excessive
+# CPU and memory usage on small cloud instances.
+
+try:
+    tf.config.threading.set_intra_op_parallelism_threads(1)
+    tf.config.threading.set_inter_op_parallelism_threads(1)
+except RuntimeError:
+    pass
 
 
 # =========================================================
@@ -37,9 +56,6 @@ VALIDATOR_MODEL_PATH = "models/lung_ct_validator.keras"
 
 IMG_SIZE = 224
 
-# Validator threshold
-# Class 0 = lung_ct
-# Class 1 = not_lung_ct
 VALIDATOR_THRESHOLD = 0.50
 
 
@@ -49,16 +65,20 @@ VALIDATOR_THRESHOLD = 0.50
 
 print("Loading LungScopeAI models...")
 
-model = tf.keras.models.load_model(
-    CLASSIFIER_MODEL_PATH
+# compile=False because these models are used only for inference.
+validator_model = tf.keras.models.load_model(
+    VALIDATOR_MODEL_PATH,
+    compile=False
 )
 
-validator_model = tf.keras.models.load_model(
-    VALIDATOR_MODEL_PATH
+print("Lung CT validator loaded.")
+
+model = tf.keras.models.load_model(
+    CLASSIFIER_MODEL_PATH,
+    compile=False
 )
 
 print("Classification model loaded.")
-print("Lung CT validator loaded.")
 
 
 # =========================================================
@@ -80,9 +100,7 @@ classes = [
 @app.route("/")
 def home():
 
-    return render_template(
-        "index.html"
-    )
+    return render_template("index.html")
 
 
 # =========================================================
@@ -103,9 +121,7 @@ def predict():
             error="No image was uploaded."
         )
 
-
     file = request.files["image"]
-
 
     if file.filename == "":
 
@@ -116,7 +132,7 @@ def predict():
 
 
     # -----------------------------------------------------
-    # Get patient information
+    # Patient Information
     # -----------------------------------------------------
 
     patient_name = request.form.get(
@@ -136,7 +152,7 @@ def predict():
 
 
     # -----------------------------------------------------
-    # Validate image extension
+    # Validate Extension
     # -----------------------------------------------------
 
     allowed_extensions = {
@@ -149,12 +165,18 @@ def predict():
         file.filename
     )
 
+    if "." not in original_filename:
+
+        return render_template(
+            "index.html",
+            error="Please upload a valid image file."
+        )
+
     extension = (
         original_filename
         .rsplit(".", 1)[-1]
         .lower()
     )
-
 
     if extension not in allowed_extensions:
 
@@ -165,7 +187,7 @@ def predict():
 
 
     # -----------------------------------------------------
-    # Create unique filename
+    # Unique Filename
     # -----------------------------------------------------
 
     unique_filename = (
@@ -174,7 +196,6 @@ def predict():
         + extension
     )
 
-
     filepath = os.path.join(
         app.config["UPLOAD_FOLDER"],
         unique_filename
@@ -182,14 +203,14 @@ def predict():
 
 
     # -----------------------------------------------------
-    # Save image
+    # Save Image
     # -----------------------------------------------------
 
     file.save(filepath)
 
 
     # -----------------------------------------------------
-    # Load image
+    # Load Image
     # -----------------------------------------------------
 
     try:
@@ -198,6 +219,8 @@ def predict():
             filepath,
             target_size=(IMG_SIZE, IMG_SIZE)
         )
+
+        img_array = image.img_to_array(img)
 
     except Exception:
 
@@ -208,16 +231,7 @@ def predict():
 
 
     # -----------------------------------------------------
-    # Convert image to array
-    # -----------------------------------------------------
-
-    img_array = image.img_to_array(
-        img
-    )
-
-
-    # -----------------------------------------------------
-    # Add batch dimension
+    # Prepare Tensor
     # -----------------------------------------------------
 
     img_array = np.expand_dims(
@@ -225,35 +239,29 @@ def predict():
         axis=0
     )
 
-
-    # -----------------------------------------------------
-    # EfficientNet preprocessing
-    # -----------------------------------------------------
-
     img_array = preprocess_input(
         img_array
     )
 
-
-    # =====================================================
-    # STEP 1 — LUNG CT IMAGE VALIDATION
-    # =====================================================
-
-    validator_prediction = validator_model.predict(
-        img_array,
-        verbose=0
+    # Convert once to float32
+    img_array = img_array.astype(
+        np.float32,
+        copy=False
     )
 
-    # The validator was trained with:
-    #
-    # class 0 = lung_ct
-    # class 1 = not_lung_ct
-    #
-    # Therefore sigmoid output represents:
-    # probability/score of NOT being a lung CT.
+
+    # =====================================================
+    # STEP 1 — LUNG CT VALIDATION
+    # =====================================================
+
+    # Direct model call is lighter than model.predict()
+    validator_output = validator_model(
+        img_array,
+        training=False
+    )
 
     not_lung_ct_score = float(
-        validator_prediction[0][0]
+        validator_output.numpy().reshape(-1)[0]
     )
 
 
@@ -289,23 +297,25 @@ def predict():
 
 
     # =====================================================
-    # STEP 2 — 4-CLASS LUNG IMAGE CLASSIFICATION
+    # STEP 2 — 4-CLASS CLASSIFICATION
     # =====================================================
 
-    predictions = model.predict(
+    classifier_output = model(
         img_array,
-        verbose=0
+        training=False
+    )
+
+    prediction_values = (
+        classifier_output.numpy().reshape(-1)
     )
 
 
     # -----------------------------------------------------
-    # Get predicted class
+    # Get Predicted Class
     # -----------------------------------------------------
 
     index = int(
-        np.argmax(
-            predictions[0]
-        )
+        np.argmax(prediction_values)
     )
 
 
@@ -314,12 +324,12 @@ def predict():
     # -----------------------------------------------------
 
     confidence = float(
-        predictions[0][index] * 100
+        prediction_values[index] * 100
     )
 
 
     # -----------------------------------------------------
-    # Prediction name
+    # Prediction Name
     # -----------------------------------------------------
 
     prediction_name = classes[index]
@@ -336,7 +346,7 @@ def predict():
 
 
     # =====================================================
-    # STEP 3 — RENDER RESULT
+    # STEP 3 — RESULT
     # =====================================================
 
     return render_template(
@@ -362,7 +372,7 @@ def predict():
 
 
 # =========================================================
-# Run Application
+# Local Development
 # =========================================================
 
 if __name__ == "__main__":
