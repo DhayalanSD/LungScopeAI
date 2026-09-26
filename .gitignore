@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual environment
+venv/
+.venv/
+
+# VS Code
+.vscode/
+
+# Training datasets
+dataset/
+dataset_final/
+validator_dataset/
+validator_dataset_v2/
+
+# Generated outputs
+outputs/
+
+# Uploaded images
+static/uploads/*
+
+# Local test images
+test_image.jpg
+test_image.png
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Training and dataset utility scripts
+check_duplicate_splits.py
+check_duplicates.py
+clean_dataset.py
+download_small_negative_set.py
+evaluate.py
+prepare_validator_dataset.py
+rebuild_dataset.py
+test_validator.py
+train.py
+train_validator.py
+predict.py

@@ -1,0 +1,1651 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>LungScopeAI | Lung Image Analysis</title>
+
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='style.css') }}">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+          rel="stylesheet">
+
+    <!-- PDF library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+</head>
+
+<body>
+
+<!-- =====================================================
+     BACKGROUND
+===================================================== -->
+
+<div class="background-glow glow-one"></div>
+<div class="background-glow glow-two"></div>
+
+
+<!-- =====================================================
+     NAVBAR
+===================================================== -->
+
+<header class="navbar">
+
+    <div class="brand">
+
+        <div class="brand-icon">
+            🫁
+        </div>
+
+        <div>
+            <div class="brand-name">
+                LungScopeAI
+            </div>
+
+            <div class="brand-tagline">
+                AI-Powered Lung Image Analysis
+            </div>
+        </div>
+
+    </div>
+
+
+    <div class="nav-actions">
+
+        <div class="model-status">
+            <span class="status-dot"></span>
+            AI Model Online
+        </div>
+
+        <button
+            type="button"
+            class="theme-button"
+            id="themeButton"
+            aria-label="Toggle dark mode">
+
+            <span id="themeIcon">🌙</span>
+
+            <span id="themeText">
+                Dark
+            </span>
+
+        </button>
+
+    </div>
+
+</header>
+
+
+<!-- =====================================================
+     MAIN
+===================================================== -->
+
+<main class="main-container">
+
+
+    <!-- =================================================
+         HERO
+    ================================================= -->
+
+    <section class="hero">
+
+        <div class="hero-badge">
+            <span>✦</span>
+            EfficientNetB0 Deep Learning
+        </div>
+
+        <h1>
+            Lung <span>Image Analysis</span>
+        </h1>
+
+        <p>
+    LungScopeAI validates uploaded images and classifies
+    supported lung images using deep-learning models across
+    four predefined categories.
+</p>
+
+    </section>
+
+
+
+    <!-- =================================================
+         PATIENT INFORMATION
+    ================================================= -->
+
+    <section class="application-card">
+
+        <div class="section-header">
+
+            <div class="section-title">
+
+                <span class="step-number">
+                    01
+                </span>
+
+                <div>
+                    <h2>Patient Information</h2>
+
+                    <p>
+                        Enter basic information before starting analysis.
+                    </p>
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <div class="patient-grid">
+
+            <div class="input-group">
+
+                <label for="patientName">
+                    Patient Name
+                </label>
+
+                <input
+                    type="text"
+                    id="patientName"
+                    placeholder="Enter patient name"
+                    autocomplete="off">
+
+            </div>
+
+
+            <div class="input-group">
+
+                <label for="patientAge">
+                    Age
+                </label>
+
+                <input
+                    type="number"
+                    id="patientAge"
+                    placeholder="Age"
+                    min="1"
+                    max="120">
+
+            </div>
+
+
+            <div class="input-group">
+
+                <label for="patientPlace">
+                    Place
+                </label>
+
+                <input
+                    type="text"
+                    id="patientPlace"
+                    placeholder="City / Location"
+                    autocomplete="off">
+
+            </div>
+
+        </div>
+
+    </section>
+
+
+
+    <!-- =================================================
+         ANALYSIS CARD
+    ================================================= -->
+
+    <section class="application-card analysis-card">
+
+
+        <!-- Upload Header -->
+
+        <div class="section-header">
+
+            <div class="section-title">
+
+                <span class="step-number">
+                    02
+                </span>
+
+                <div>
+                    <h2>Upload Lung Image</h2>
+
+                    <p>
+                        Upload a PNG, JPG or JPEG image for AI analysis.
+                    </p>
+                </div>
+
+            </div>
+
+            <span class="format-label">
+                PNG / JPG / JPEG
+            </span>
+
+        </div>
+
+
+
+        <!-- FORM -->
+
+        <form
+            action="/predict"
+            method="POST"
+            enctype="multipart/form-data"
+            id="predictionForm">
+
+
+            <!-- Hidden patient information -->
+
+            <input
+                type="hidden"
+                name="patient_name"
+                id="hiddenPatientName">
+
+            <input
+                type="hidden"
+                name="patient_age"
+                id="hiddenPatientAge">
+
+            <input
+                type="hidden"
+                name="patient_place"
+                id="hiddenPatientPlace">
+
+
+
+            <!-- Upload Area -->
+
+            <label
+                class="upload-area"
+                id="uploadArea">
+
+                <input
+                    type="file"
+                    name="image"
+                    id="imageInput"
+                    accept=".png,.jpg,.jpeg"
+                    required>
+
+                <div class="upload-icon">
+                    ↑
+                </div>
+
+                <h3>
+                    Drop your lung image here
+                </h3>
+
+                <p>
+                    or
+                    <span>
+                        browse from your computer
+                    </span>
+                </p>
+
+                <div class="upload-info">
+                    Maximum recommended file size: 10 MB
+                </div>
+
+            </label>
+
+
+
+            <!-- Preview -->
+
+            <div
+                class="preview-container"
+                id="previewContainer">
+
+                <div class="preview-header">
+
+                    <span>
+                        Selected Image
+                    </span>
+
+                    <button
+                        type="button"
+                        id="removeImage">
+
+                        Remove
+
+                    </button>
+
+                </div>
+
+                <img
+                    id="imagePreview"
+                    src=""
+                    alt="Selected lung image">
+
+            </div>
+
+
+
+            <!-- Predict Button -->
+
+            <button
+                type="submit"
+                class="predict-button"
+                id="predictButton">
+
+                <span class="button-icon">
+                    ✦
+                </span>
+
+                <span id="buttonText">
+                    Analyze Image
+                </span>
+
+                <span class="arrow">
+                    →
+                </span>
+
+            </button>
+
+        </form>
+
+    </section>
+
+
+
+    <!-- =================================================
+         RESULT
+    ================================================= -->
+
+    {% if prediction or unsupported_image %}
+
+    <section
+        class="application-card result-section"
+        id="reportContent">
+
+        {% if unsupported_image %}
+
+<!-- =================================================
+     UNSUPPORTED IMAGE RESULT
+================================================= -->
+
+        <div class="unsupported-result">
+
+            <div class="unsupported-icon">
+                ⚠
+            </div>
+
+            <div class="unsupported-content">
+
+                <span class="prediction-label">
+                    IMAGE VALIDATION
+                </span>
+
+                <h3>
+                    Image Not Supported
+                </h3>
+
+                <p>
+    The uploaded image was not identified as a supported
+    lung CT image and was not sent to the classification model.
+</p>
+
+                <div class="validator-score">
+
+                    <span>
+                        Not-Lung-CT Score
+                    </span>
+
+                    <strong>
+                        {{ validator_score }}%
+                    </strong>
+
+                </div>
+                <p class="validator-score-note">
+    Validator score represents the model's estimated
+    probability that the image belongs to the unsupported
+    image category.
+</p>
+
+                <div class="unsupported-message">
+
+    <strong>
+        Please upload a supported lung CT image.
+    </strong>
+
+    <p>
+        LungScopeAI first validates the uploaded image
+        before classification. Images that are unrelated
+        or outside the supported image type are rejected
+        and are not classified into the four lung categories.
+    </p>
+
+</div>
+
+                <button
+                    type="button"
+                    class="new-analysis-button"
+                    onclick="window.location.href='/'">
+
+                    + New Analysis
+
+                </button>
+
+            </div>
+
+        </div>
+
+{% else %}
+
+
+
+
+        <!-- Result Header -->
+
+        <div class="section-header">
+
+            <div class="section-title">
+
+                <span class="step-number result-number">
+                    03
+                </span>
+
+                <div>
+                    <h2>
+                        LungScopeAI Analysis
+                    </h2>
+
+                    <p>
+                        AI classification result
+                    </p>
+                </div>
+
+            </div>
+
+            <span class="result-status">
+                Analysis Complete
+            </span>
+
+        </div>
+
+
+
+        <!-- Patient Summary -->
+
+        <div class="patient-summary">
+
+            <div>
+                <span>Patient</span>
+                <strong id="reportPatientName">
+                    {{ patient_name if patient_name else "Not provided" }}
+                </strong>
+            </div>
+
+            <div>
+                <span>Age</span>
+                <strong id="reportPatientAge">
+                    {{ patient_age if patient_age else "Not provided" }}
+                </strong>
+            </div>
+
+            <div>
+                <span>Place</span>
+                <strong id="reportPatientPlace">
+                    {{ patient_place if patient_place else "Not provided" }}
+                </strong>
+            </div>
+
+            <div>
+                <span>System</span>
+                <strong>
+                    LungScopeAI
+                </strong>
+            </div>
+
+        </div>
+
+
+
+        <!-- Result Grid -->
+
+        <div class="result-grid">
+
+
+            <!-- IMAGE -->
+
+            <div class="result-image-card">
+
+                <div class="image-label">
+                    Analyzed Image
+                </div>
+
+                <img
+                    src="{{ image_path }}"
+                    alt="Analyzed lung image">
+
+            </div>
+
+
+
+            <!-- PREDICTION -->
+
+            <div class="prediction-card">
+
+                <span class="prediction-label">
+                    AI Classification
+                </span>
+
+                <h3>
+                    {{ prediction }}
+                </h3>
+
+                <div class="confidence-label">
+
+                    <span>
+                        Model Confidence
+                    </span>
+
+                    <strong>
+                        {{ confidence }}%
+                    </strong>
+
+                </div>
+
+                <div class="confidence-bar">
+
+                    <div
+                        class="confidence-fill"
+                        data-confidence="{{ confidence }}">
+                    </div>
+
+                </div>
+
+                <p class="prediction-note">
+                    This percentage represents the model's
+                    output probability for the predicted class.
+                    It is not a medical certainty.
+                </p>
+
+            </div>
+
+        </div>
+
+
+
+        <!-- =================================================
+             MEDICAL INFORMATION
+        ================================================= -->
+
+        <div class="medical-information">
+
+            <div class="medical-header">
+
+                <span class="info-badge">
+                    AI INFORMATION
+                </span>
+
+                <h2 id="medicalTitle">
+                    About this classification
+                </h2>
+
+                <p id="medicalIntro">
+                    General educational information related
+                    to the model's classification.
+                </p>
+
+            </div>
+
+
+
+            <div class="medical-grid">
+
+
+                <!-- ABOUT -->
+
+                <div class="medical-card">
+
+                    <div class="medical-icon">
+                        🫁
+                    </div>
+
+                    <h3>
+                        What does it mean?
+                    </h3>
+
+                    <p id="aboutCancer">
+                        This result represents an AI image
+                        classification and does not confirm
+                        the presence or absence of cancer.
+                    </p>
+
+                </div>
+
+
+
+                <!-- TREATMENT -->
+
+                <div class="medical-card">
+
+                    <div class="medical-icon">
+                        💊
+                    </div>
+
+                    <h3>
+                        Treatment information
+                    </h3>
+
+                    <p id="treatmentInfo">
+                        Treatment depends on confirmed diagnosis,
+                        stage, pathology and individual patient
+                        factors. A qualified doctor should determine
+                        the appropriate treatment.
+                    </p>
+
+                </div>
+
+
+
+                <!-- DOCTOR -->
+
+                <div class="medical-card">
+
+                    <div class="medical-icon">
+                        👨‍⚕️
+                    </div>
+
+                    <h3>
+                        Which doctor?
+                    </h3>
+
+                    <p id="doctorInfo">
+                        A pulmonologist or respiratory specialist
+                        can evaluate lung-related findings.
+                        If cancer is confirmed, an oncologist and
+                        other specialists may be involved.
+                    </p>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+
+        <!-- =================================================
+             REPORT ACTIONS
+        ================================================= -->
+
+        <div class="report-actions">
+
+            <button
+                type="button"
+                class="download-button"
+                id="downloadPdf">
+
+                📄
+                Download PDF Report
+
+            </button>
+
+            <button
+                type="button"
+                class="new-analysis-button"
+                onclick="window.location.href='/'">
+
+                + New Analysis
+
+            </button>
+
+        </div>
+
+
+
+        <!-- DISCLAIMER -->
+
+        <div class="medical-disclaimer">
+
+            <div class="disclaimer-icon">
+                ⚠
+            </div>
+
+            <div>
+
+                <strong>
+                    Important Medical Notice
+                </strong>
+
+                <p>
+                    LungScopeAI is an educational and research
+                    project demonstrating image classification
+                    using deep learning. This AI output is not a
+                    medical diagnosis. It should not be used to
+                    start, stop or change treatment. Medical
+                    decisions should be made by a qualified
+                    healthcare professional using appropriate
+                    clinical examination, imaging, pathology and
+                    other diagnostic information.
+                </p>
+
+            </div>
+
+        </div>
+
+        {% endif %}
+
+    </section>
+
+    {% endif %}
+
+
+
+    <!-- =================================================
+         MODEL CLASSES
+    ================================================= -->
+
+    <section class="classes-section">
+
+        <div class="classes-heading">
+
+            <span class="small-label">
+                MODEL CAPABILITIES
+            </span>
+
+            <h2>
+                Four Classification Categories
+            </h2>
+
+            <p>
+    After image validation, LungScopeAI classifies supported
+    lung images into the following four predefined categories.
+</p>
+
+        </div>
+
+
+        <div class="class-grid">
+
+
+            <div class="class-card">
+
+                <div class="class-icon">
+                    A
+                </div>
+
+                <div>
+                    <h3>
+                        Adenocarcinoma
+                    </h3>
+
+                    <p>
+                        Lung cancer classification
+                    </p>
+                </div>
+
+            </div>
+
+
+
+            <div class="class-card">
+
+                <div class="class-icon">
+                    L
+                </div>
+
+                <div>
+                    <h3>
+                        Large Cell Carcinoma
+                    </h3>
+
+                    <p>
+                        Lung cancer classification
+                    </p>
+                </div>
+
+            </div>
+
+
+
+            <div class="class-card">
+
+                <div class="class-icon normal-icon">
+                    N
+                </div>
+
+                <div>
+                    <h3>
+                        Normal
+                    </h3>
+
+                    <p>
+                        Normal image classification
+                    </p>
+                </div>
+
+            </div>
+
+
+
+            <div class="class-card">
+
+                <div class="class-icon">
+                    S
+                </div>
+
+                <div>
+                    <h3>
+                        Squamous Cell Carcinoma
+                    </h3>
+
+                    <p>
+                        Lung cancer classification
+                    </p>
+                </div>
+
+            </div>
+
+        </div>
+
+    </section>
+
+
+
+    <!-- =================================================
+         GENERAL MEDICAL GUIDANCE
+    ================================================= -->
+
+    <section class="guidance-card">
+
+        <div class="guidance-icon">
+            🩺
+        </div>
+
+        <div>
+
+            <h2>
+                What happens after an abnormal result?
+            </h2>
+
+            <p>
+                An AI classification should be treated as an
+                informational result rather than a confirmed
+                diagnosis. If a healthcare professional suspects
+                lung disease or cancer, they may recommend
+                appropriate clinical evaluation and additional
+                tests such as diagnostic imaging or tissue
+                examination.
+            </p>
+
+        </div>
+
+    </section>
+
+</main>
+
+
+
+<!-- =====================================================
+     FOOTER
+===================================================== -->
+
+<footer>
+
+    <div class="footer-brand">
+        🫁 <strong>LungScopeAI -By Yuvashree</strong>
+    </div>
+
+    <p>
+        AI Research &amp; Demonstration Project
+    </p>
+
+    <p class="model-info">
+    EfficientNetB0 · Image Validator · 224×224 · 4 Classes
+</p>
+
+</footer>
+
+
+
+<!-- =====================================================
+     JAVASCRIPT
+===================================================== -->
+
+<script>
+
+    /* =====================================================
+       ELEMENTS
+    ===================================================== */
+
+    const imageInput =
+        document.getElementById("imageInput");
+
+    const imagePreview =
+        document.getElementById("imagePreview");
+
+    const previewContainer =
+        document.getElementById("previewContainer");
+
+    const uploadArea =
+        document.getElementById("uploadArea");
+
+    const removeImage =
+        document.getElementById("removeImage");
+
+    const predictionForm =
+        document.getElementById("predictionForm");
+
+    const predictButton =
+        document.getElementById("predictButton");
+
+    const buttonText =
+        document.getElementById("buttonText");
+
+
+    /* =====================================================
+       PATIENT FIELDS
+    ===================================================== */
+
+    const patientName =
+        document.getElementById("patientName");
+
+    const patientAge =
+        document.getElementById("patientAge");
+
+    const patientPlace =
+        document.getElementById("patientPlace");
+
+    const hiddenPatientName =
+        document.getElementById("hiddenPatientName");
+
+    const hiddenPatientAge =
+        document.getElementById("hiddenPatientAge");
+
+    const hiddenPatientPlace =
+        document.getElementById("hiddenPatientPlace");
+
+
+    /* =====================================================
+       IMAGE VALIDATION
+    ===================================================== */
+
+    if (imageInput) {
+
+        imageInput.addEventListener(
+            "change",
+            function () {
+
+                const file = this.files[0];
+
+                if (!file) {
+                    return;
+                }
+
+                const allowedTypes = [
+                    "image/png",
+                    "image/jpeg"
+                ];
+
+                if (!allowedTypes.includes(file.type)) {
+
+                    alert(
+                        "Please select a PNG, JPG or JPEG image."
+                    );
+
+                    imageInput.value = "";
+
+                    return;
+                }
+
+
+                if (
+                    file.size >
+                    10 * 1024 * 1024
+                ) {
+
+                    alert(
+                        "Please select an image smaller than 10 MB."
+                    );
+
+                    imageInput.value = "";
+
+                    return;
+                }
+
+
+                const reader =
+                    new FileReader();
+
+
+                reader.onload =
+                    function (event) {
+
+                        imagePreview.src =
+                            event.target.result;
+
+                        previewContainer.classList.add(
+                            "show"
+                        );
+
+                        uploadArea.classList.add(
+                            "has-image"
+                        );
+
+                    };
+
+
+                reader.readAsDataURL(file);
+
+            }
+        );
+
+    }
+
+
+    /* =====================================================
+       REMOVE IMAGE
+    ===================================================== */
+
+    if (removeImage) {
+
+        removeImage.addEventListener(
+            "click",
+            function () {
+
+                imageInput.value = "";
+
+                imagePreview.src = "";
+
+                previewContainer.classList.remove(
+                    "show"
+                );
+
+                uploadArea.classList.remove(
+                    "has-image"
+                );
+
+            }
+        );
+
+    }
+
+
+    /* =====================================================
+       DRAG AND DROP
+    ===================================================== */
+
+    if (uploadArea) {
+
+        uploadArea.addEventListener(
+            "dragover",
+            function (event) {
+
+                event.preventDefault();
+
+                uploadArea.classList.add(
+                    "dragging"
+                );
+
+            }
+        );
+
+
+        uploadArea.addEventListener(
+            "dragleave",
+            function () {
+
+                uploadArea.classList.remove(
+                    "dragging"
+                );
+
+            }
+        );
+
+
+        uploadArea.addEventListener(
+            "drop",
+            function (event) {
+
+                event.preventDefault();
+
+                uploadArea.classList.remove(
+                    "dragging"
+                );
+
+                const files =
+                    event.dataTransfer.files;
+
+                if (files.length > 0) {
+
+                    imageInput.files =
+                        files;
+
+                    imageInput.dispatchEvent(
+                        new Event("change")
+                    );
+
+                }
+
+            }
+        );
+
+    }
+
+
+    /* =====================================================
+       FORM SUBMIT
+    ===================================================== */
+
+    if (predictionForm) {
+
+        predictionForm.addEventListener(
+            "submit",
+            function () {
+
+                /*
+                 * Copy patient information into
+                 * hidden form fields.
+                 */
+
+                hiddenPatientName.value =
+                    patientName.value;
+
+                hiddenPatientAge.value =
+                    patientAge.value;
+
+                hiddenPatientPlace.value =
+                    patientPlace.value;
+
+
+                predictButton.classList.add(
+                    "loading"
+                );
+
+                predictButton.disabled =
+                    true;
+
+                buttonText.textContent =
+                    "Analyzing Image...";
+
+            }
+        );
+
+    }
+
+
+    /* =====================================================
+       CONFIDENCE BAR
+    ===================================================== */
+
+    const confidenceFill =
+        document.querySelector(
+            ".confidence-fill"
+        );
+
+    if (confidenceFill) {
+
+        const confidence =
+            parseFloat(
+                confidenceFill.dataset.confidence
+            );
+
+        if (!isNaN(confidence)) {
+
+            setTimeout(
+                function () {
+
+                    confidenceFill.style.width =
+                        Math.min(
+                            Math.max(
+                                confidence,
+                                0
+                            ),
+                            100
+                        ) + "%";
+
+                },
+                200
+            );
+
+        }
+
+    }
+
+
+    /* =====================================================
+       DARK / LIGHT THEME
+    ===================================================== */
+
+    const themeButton =
+        document.getElementById(
+            "themeButton"
+        );
+
+    const themeIcon =
+        document.getElementById(
+            "themeIcon"
+        );
+
+    const themeText =
+        document.getElementById(
+            "themeText"
+        );
+
+
+    function setTheme(theme) {
+
+        document.body.dataset.theme =
+            theme;
+
+        localStorage.setItem(
+            "lungscope-theme",
+            theme
+        );
+
+
+        if (theme === "dark") {
+
+            themeIcon.textContent =
+                "☀️";
+
+            themeText.textContent =
+                "Light";
+
+        } else {
+
+            themeIcon.textContent =
+                "🌙";
+
+            themeText.textContent =
+                "Dark";
+
+        }
+
+    }
+
+
+    const savedTheme =
+        localStorage.getItem(
+            "lungscope-theme"
+        );
+
+
+    if (savedTheme) {
+
+        setTheme(savedTheme);
+
+    } else {
+
+        setTheme("light");
+
+    }
+
+
+    if (themeButton) {
+
+        themeButton.addEventListener(
+            "click",
+            function () {
+
+                const currentTheme =
+                    document.body.dataset.theme;
+
+                setTheme(
+                    currentTheme === "dark"
+                        ? "light"
+                        : "dark"
+                );
+
+            }
+        );
+
+    }
+
+
+    /* =====================================================
+       MEDICAL INFORMATION
+    ===================================================== */
+
+    const predictionText =
+        "{{ prediction|default('', true)|lower|replace(' ', '') }}";
+
+
+    const aboutCancer =
+        document.getElementById(
+            "aboutCancer"
+        );
+
+    const treatmentInfo =
+        document.getElementById(
+            "treatmentInfo"
+        );
+
+    const doctorInfo =
+        document.getElementById(
+            "doctorInfo"
+        );
+
+
+    if (predictionText) {
+
+        if (
+            predictionText.includes(
+                "adenocarcinoma"
+            )
+        ) {
+
+            aboutCancer.textContent =
+                "Adenocarcinoma is a type of non-small cell lung cancer that develops from gland-forming cells. An AI classification cannot confirm that a person has this cancer; confirmation requires clinical evaluation and appropriate diagnostic testing.";
+
+            treatmentInfo.textContent =
+                "When adenocarcinoma is confirmed, treatment may involve surgery, radiation therapy, chemotherapy, targeted therapy or immunotherapy depending on stage, molecular findings and the individual patient's condition.";
+
+            doctorInfo.textContent =
+                "A pulmonologist may evaluate the lung findings. If cancer is confirmed, a medical oncologist, radiation oncologist and thoracic surgeon may be involved.";
+
+        }
+
+
+        else if (
+            predictionText.includes(
+                "large.cell.carcinoma"
+            )
+        ) {
+
+            aboutCancer.textContent =
+                "Large cell carcinoma is a type of non-small cell lung cancer. The classification shown here is an AI image prediction and does not establish a confirmed diagnosis.";
+
+            treatmentInfo.textContent =
+                "Treatment for confirmed disease depends on stage and individual clinical findings and may include surgery, radiation therapy, chemotherapy, immunotherapy or other systemic treatments.";
+
+            doctorInfo.textContent =
+                "A pulmonologist can assess the lung findings. Confirmed lung cancer may require evaluation by an oncologist and, where appropriate, a thoracic surgeon.";
+
+        }
+
+
+        else if (
+            predictionText.includes(
+                "squamous.cell.carcinoma"
+            )
+        ) {
+
+            aboutCancer.textContent =
+                "Squamous cell carcinoma is a type of non-small cell lung cancer. LungScopeAI only provides an image classification and cannot confirm cancer.";
+
+            treatmentInfo.textContent =
+                "For confirmed disease, treatment depends on stage and other clinical factors and may include surgery, radiation therapy, chemotherapy, immunotherapy or other treatments recommended by the treating medical team.";
+
+            doctorInfo.textContent =
+                "A pulmonologist can evaluate respiratory findings. If cancer is confirmed, an oncologist and potentially a thoracic surgeon or radiation oncologist may participate in care.";
+
+        }
+
+
+        else if (
+            predictionText.includes(
+                "normal"
+            )
+        ) {
+
+            aboutCancer.textContent =
+                "The model classified the uploaded image as normal. This does not rule out every lung condition or guarantee that a person is medically healthy.";
+
+            treatmentInfo.textContent =
+                "No cancer treatment should be started based solely on this AI classification. If symptoms or clinical concerns exist, the patient should still consult a healthcare professional.";
+
+            doctorInfo.textContent =
+                "A primary-care doctor or pulmonologist can evaluate symptoms and determine whether additional clinical assessment is appropriate.";
+
+        }
+
+    }
+
+
+    /* =====================================================
+       PDF DOWNLOAD
+    ===================================================== */
+
+    /* =====================================================
+   PDF DOWNLOAD - SINGLE A4 PAGE
+===================================================== */
+
+const downloadPdf = document.getElementById("downloadPdf");
+
+if (downloadPdf) {
+
+    downloadPdf.addEventListener("click", async function () {
+
+        const report = document.getElementById("reportContent");
+
+        if (!report) {
+            alert("Report content not found.");
+            return;
+        }
+
+        /* ---------------------------------------------
+           PATIENT NAME FOR FILE
+        --------------------------------------------- */
+
+        const patient =
+            document.getElementById("reportPatientName");
+
+        let patientNameForFile =
+            patient
+                ? patient.textContent.trim()
+                : "Patient";
+
+        patientNameForFile =
+            patientNameForFile
+                .replace(/[^a-z0-9]/gi, "_")
+                .substring(0, 50);
+
+
+        /* ---------------------------------------------
+           CREATE PDF COPY
+        --------------------------------------------- */
+
+        const pdfReport = report.cloneNode(true);
+
+        pdfReport.id = "pdfReportCopy";
+
+
+        /* ---------------------------------------------
+           REMOVE WEBSITE BUTTONS
+        --------------------------------------------- */
+
+        const reportActions =
+            pdfReport.querySelector(".report-actions");
+
+        if (reportActions) {
+            reportActions.remove();
+        }
+
+
+        /*
+         * Also remove any remaining buttons
+         */
+
+        pdfReport
+            .querySelectorAll("button")
+            .forEach(function (button) {
+                button.remove();
+            });
+
+
+        /* ---------------------------------------------
+           TEMPORARY PDF CONTAINER
+        --------------------------------------------- */
+
+        const pdfContainer =
+            document.createElement("div");
+
+        pdfContainer.style.position = "fixed";
+        pdfContainer.style.left = "-10000px";
+        pdfContainer.style.top = "0";
+
+        pdfContainer.style.width = "190mm";
+
+        pdfContainer.style.background = "#ffffff";
+
+        pdfContainer.style.padding = "0";
+        pdfContainer.style.margin = "0";
+
+        pdfContainer.style.boxSizing = "border-box";
+
+
+        pdfContainer.appendChild(pdfReport);
+
+        document.body.appendChild(pdfContainer);
+
+
+        /* ---------------------------------------------
+           PDF REPORT STYLE
+        --------------------------------------------- */
+
+        pdfReport.style.width = "190mm";
+        pdfReport.style.maxWidth = "190mm";
+
+        pdfReport.style.background = "#ffffff";
+        pdfReport.style.color = "#111827";
+
+        pdfReport.style.margin = "0";
+        pdfReport.style.padding = "0";
+
+        pdfReport.style.boxSizing = "border-box";
+
+
+        /*
+         * Disable animations/transitions
+         */
+
+        pdfReport
+            .querySelectorAll("*")
+            .forEach(function (element) {
+
+                element.style.animation = "none";
+                element.style.transition = "none";
+
+            });
+
+
+        /* ---------------------------------------------
+           PDF OPTIONS
+        --------------------------------------------- */
+
+        const options = {
+
+            margin: 8,
+
+            filename:
+                "LungScopeAI_Report_" +
+                patientNameForFile +
+                ".pdf",
+
+            image: {
+
+                type: "jpeg",
+
+                quality: 0.98
+
+            },
+
+            html2canvas: {
+
+                scale: 1.5,
+
+                useCORS: true,
+
+                allowTaint: true,
+
+                backgroundColor: "#ffffff",
+
+                logging: false,
+
+                scrollX: 0,
+
+                scrollY: 0
+
+            },
+
+            jsPDF: {
+
+                unit: "mm",
+
+                format: "a4",
+
+                orientation: "portrait",
+
+                compress: true
+
+            },
+
+            pagebreak: {
+
+                mode: [
+                    "avoid-all"
+                ]
+
+            }
+
+        };
+
+
+        /* ---------------------------------------------
+           GENERATE PDF
+        --------------------------------------------- */
+
+        try {
+
+            /*
+             * Give browser time to render
+             */
+
+            await new Promise(function (resolve) {
+
+                setTimeout(resolve, 500);
+
+            });
+
+
+            await html2pdf()
+
+                .set(options)
+
+                .from(pdfReport)
+
+                .save();
+
+
+        } catch (error) {
+
+            console.error(
+                "PDF generation error:",
+                error
+            );
+
+            alert(
+                "Unable to generate PDF. Please try again."
+            );
+
+        } finally {
+
+            /*
+             * Remove temporary PDF copy
+             */
+
+            pdfContainer.remove();
+
+        }
+
+    });
+
+
+    
+
+}
+
+
+
+    
+
+</script>
+
+</body>
+</html>
