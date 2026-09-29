@@ -1,11 +1,37 @@
+# =========================================================
+# LungScopeAI - Flask Production Application
+# =========================================================
+
+import os
+
+# =========================================================
+# TensorFlow Environment Configuration
+# IMPORTANT:
+# These must be set BEFORE importing TensorFlow.
+# =========================================================
+
+# Force CPU-only inference on Render
+os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+
+# Reduce TensorFlow logging
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
+
+# Limit OpenMP threads
+os.environ["OMP_NUM_THREADS"] = "1"
+
+
+# =========================================================
+# Imports
+# =========================================================
+
+import gc
+import uuid
+
 from flask import Flask, render_template, request
 from werkzeug.utils import secure_filename
 
-import os
-import uuid
-import gc
-
 import numpy as np
+
 import tensorflow as tf
 
 from tensorflow.keras.preprocessing import image
@@ -13,22 +39,24 @@ from tensorflow.keras.applications.efficientnet import preprocess_input
 
 
 # =========================================================
-# TensorFlow Configuration
+# TensorFlow CPU Configuration
 # =========================================================
 
-# Disable GPU usage on Render.
 try:
     tf.config.set_visible_devices([], "GPU")
 except Exception:
     pass
 
-# Limit CPU thread usage.
-tf.config.threading.set_intra_op_parallelism_threads(1)
-tf.config.threading.set_inter_op_parallelism_threads(1)
+
+try:
+    tf.config.threading.set_intra_op_parallelism_threads(1)
+    tf.config.threading.set_inter_op_parallelism_threads(1)
+except RuntimeError:
+    pass
 
 
 # =========================================================
-# Flask Application
+# Flask App
 # =========================================================
 
 app = Flask(__name__)
@@ -48,24 +76,35 @@ os.makedirs(
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
 # Maximum upload size = 10 MB
-app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024
+app.config["MAX_CONTENT_LENGTH"] = (
+    10 * 1024 * 1024
+)
 
 
 # =========================================================
 # Model Configuration
 # =========================================================
 
-CLASSIFIER_MODEL_PATH = "models/best_b1_model.keras"
+# IMPORTANT:
+# Use your BEST EfficientNetB1 model.
+CLASSIFIER_MODEL_PATH = (
+    "models/best_b1_model.keras"
+)
 
-VALIDATOR_MODEL_PATH = "models/lung_ct_validator.keras"
+# Lung CT validator
+VALIDATOR_MODEL_PATH = (
+    "models/lung_ct_validator.keras"
+)
 
+# Model input size
 IMG_SIZE = 224
 
+# Validator threshold
 VALIDATOR_THRESHOLD = 0.50
 
 
 # =========================================================
-# Classes
+# Classification Classes
 # =========================================================
 
 classes = [
@@ -77,7 +116,7 @@ classes = [
 
 
 # =========================================================
-# Memory Cleanup
+# TensorFlow Memory Cleanup
 # =========================================================
 
 def clear_tensorflow_memory():
@@ -93,19 +132,25 @@ def clear_tensorflow_memory():
 
 
 # =========================================================
-# Image Preparation
+# Prepare Image
 # =========================================================
 
 def prepare_image(filepath):
 
     img = image.load_img(
         filepath,
-        target_size=(IMG_SIZE, IMG_SIZE)
+        target_size=(
+            IMG_SIZE,
+            IMG_SIZE
+        )
     )
 
     img_array = image.img_to_array(
         img
     )
+
+    # Release PIL image
+    del img
 
     img_array = np.expand_dims(
         img_array,
@@ -114,6 +159,12 @@ def prepare_image(filepath):
 
     img_array = preprocess_input(
         img_array
+    )
+
+    # Ensure float32
+    img_array = img_array.astype(
+        np.float32,
+        copy=False
     )
 
     return img_array
@@ -125,38 +176,46 @@ def prepare_image(filepath):
 
 def load_validator():
 
-    print("Loading Lung CT validator...")
+    print(
+        "Loading Lung CT validator..."
+    )
 
     validator = tf.keras.models.load_model(
         VALIDATOR_MODEL_PATH,
         compile=False
     )
 
-    print("Lung CT validator loaded.")
+    print(
+        "Lung CT validator loaded."
+    )
 
     return validator
 
 
 # =========================================================
-# Load Classifier
+# Load EfficientNetB1
 # =========================================================
 
 def load_classifier():
 
-    print("Loading EfficientNetB1 classifier...")
+    print(
+        "Loading EfficientNetB1 classifier..."
+    )
 
     classifier = tf.keras.models.load_model(
         CLASSIFIER_MODEL_PATH,
         compile=False
     )
 
-    print("EfficientNetB1 classifier loaded.")
+    print(
+        "EfficientNetB1 classifier loaded."
+    )
 
     return classifier
 
 
 # =========================================================
-# Home
+# Home Page
 # =========================================================
 
 @app.route("/")
@@ -177,9 +236,9 @@ def home():
 )
 def predict():
 
-    # -----------------------------------------------------
-    # Check image
-    # -----------------------------------------------------
+    # =====================================================
+    # CHECK IMAGE
+    # =====================================================
 
     if "image" not in request.files:
 
@@ -197,9 +256,10 @@ def predict():
             error="Please select an image."
         )
 
-    # -----------------------------------------------------
-    # Patient Information
-    # -----------------------------------------------------
+
+    # =====================================================
+    # PATIENT INFORMATION
+    # =====================================================
 
     patient_name = request.form.get(
         "patient_name",
@@ -216,9 +276,10 @@ def predict():
         ""
     ).strip()
 
-    # -----------------------------------------------------
-    # File Validation
-    # -----------------------------------------------------
+
+    # =====================================================
+    # FILE VALIDATION
+    # =====================================================
 
     allowed_extensions = {
         "png",
@@ -234,7 +295,7 @@ def predict():
 
         return render_template(
             "index.html",
-            error="Invalid image file."
+            error="Please upload a valid image file."
         )
 
     extension = (
@@ -247,12 +308,16 @@ def predict():
 
         return render_template(
             "index.html",
-            error="Only PNG, JPG and JPEG images are allowed."
+            error=(
+                "Only PNG, JPG and JPEG "
+                "images are allowed."
+            )
         )
 
-    # -----------------------------------------------------
-    # Unique Filename
-    # -----------------------------------------------------
+
+    # =====================================================
+    # UNIQUE FILENAME
+    # =====================================================
 
     unique_filename = (
         uuid.uuid4().hex
@@ -265,13 +330,16 @@ def predict():
         unique_filename
     )
 
-    # -----------------------------------------------------
-    # Save Image
-    # -----------------------------------------------------
+
+    # =====================================================
+    # SAVE IMAGE
+    # =====================================================
 
     try:
 
-        file.save(filepath)
+        file.save(
+            filepath
+        )
 
     except Exception as e:
 
@@ -282,12 +350,18 @@ def predict():
 
         return render_template(
             "index.html",
-            error="The uploaded image could not be saved."
+            error=(
+                "The uploaded image "
+                "could not be saved."
+            )
         )
 
-    # -----------------------------------------------------
-    # Prepare Image
-    # -----------------------------------------------------
+
+    # =====================================================
+    # PREPARE IMAGE
+    # =====================================================
+
+    img_array = None
 
     try:
 
@@ -305,6 +379,7 @@ def predict():
         try:
 
             if os.path.exists(filepath):
+
                 os.remove(filepath)
 
         except Exception:
@@ -312,37 +387,64 @@ def predict():
 
         return render_template(
             "index.html",
-            error="The uploaded file could not be processed as an image."
+            error=(
+                "The uploaded file could "
+                "not be processed as an image."
+            )
         )
+
 
     # =====================================================
     # STEP 1
-    # LOAD VALIDATOR ONLY
+    # LUNG CT VALIDATION
     # =====================================================
 
     validator = None
+    validator_output = None
 
     try:
 
+        print(
+            "========================================"
+        )
+
+        print(
+            "STEP 1: Lung CT validation"
+        )
+
         validator = load_validator()
 
-        validator_prediction = validator(
+
+        # -------------------------------------------------
+        # Direct TensorFlow inference
+        # -------------------------------------------------
+
+        validator_output = validator(
             img_array,
             training=False
         )
 
-        validator_prediction = np.asarray(
-            validator_prediction
+
+        # -------------------------------------------------
+        # Convert output to NumPy
+        # -------------------------------------------------
+
+        validator_values = (
+            validator_output.numpy()
+            .reshape(-1)
         )
 
+
         not_lung_ct_score = float(
-            validator_prediction[0][0]
+            validator_values[0]
         )
+
 
         print(
             "Validator score:",
             not_lung_ct_score
         )
+
 
     except Exception as e:
 
@@ -351,79 +453,205 @@ def predict():
             repr(e)
         )
 
-        validator = None
+        # Cleanup
+        try:
+            del validator
+        except Exception:
+            pass
+
+        try:
+            del validator_output
+        except Exception:
+            pass
+
+        try:
+            del validator_values
+        except Exception:
+            pass
+
+        try:
+            del img_array
+        except Exception:
+            pass
 
         clear_tensorflow_memory()
 
         return render_template(
             "index.html",
-            error="The image validation process failed. Please try again."
+            error=(
+                "The image validation process "
+                "failed. Please try again."
+            )
         )
 
+
     # =====================================================
+    # DELETE VALIDATOR
+    # BEFORE LOADING B1
+    # =====================================================
+
+    try:
+        del validator
+    except Exception:
+        pass
+
+    try:
+        del validator_output
+    except Exception:
+        pass
+
+    try:
+        del validator_values
+    except Exception:
+        pass
+
+
     # IMPORTANT:
-    # DELETE VALIDATOR BEFORE LOADING B1
-    # =====================================================
-
-    del validator
-    del validator_prediction
-
+    # Clear TensorFlow/Keras state before
+    # loading EfficientNetB1.
     clear_tensorflow_memory()
+
 
     # =====================================================
     # STEP 1 RESULT
-    # NON-LUNG CT IMAGE
+    # UNSUPPORTED IMAGE
     # =====================================================
 
-    if not_lung_ct_score >= VALIDATOR_THRESHOLD:
+    if (
+        not_lung_ct_score
+        >= VALIDATOR_THRESHOLD
+    ):
+
+        print(
+            "Result: Unsupported image"
+        )
+
+        print(
+            "Validator percentage:",
+            round(
+                not_lung_ct_score * 100,
+                2
+            )
+        )
+
 
         image_path = (
             "/static/uploads/"
             + unique_filename
         )
 
-        del img_array
+
+        # Free image tensor
+        try:
+            del img_array
+        except Exception:
+            pass
 
         clear_tensorflow_memory()
 
+
         return render_template(
             "index.html",
+
             unsupported_image=True,
+
             validator_score=round(
                 not_lung_ct_score * 100,
                 2
             ),
+
             image_path=image_path,
+
             patient_name=patient_name,
+
             patient_age=patient_age,
+
             patient_place=patient_place
         )
 
+
     # =====================================================
     # STEP 2
-    # LOAD B1 CLASSIFIER ONLY
+    # FOUR-CLASS CLASSIFICATION
     # =====================================================
 
     classifier = None
-    predictions = None
+    classifier_output = None
+    prediction_values = None
 
     try:
 
+        print(
+            "========================================"
+        )
+
+        print(
+            "STEP 2: EfficientNetB1 classification"
+        )
+
         classifier = load_classifier()
 
-        predictions = classifier(
+
+        # -------------------------------------------------
+        # Direct TensorFlow inference
+        # -------------------------------------------------
+
+        classifier_output = classifier(
             img_array,
             training=False
         )
 
-        predictions = np.asarray(
-            predictions
-        )[0]
+
+        # -------------------------------------------------
+        # Convert to NumPy
+        # -------------------------------------------------
+
+        prediction_values = (
+            classifier_output.numpy()
+            .reshape(-1)
+        )
+
+
+        # -------------------------------------------------
+        # Find class
+        # -------------------------------------------------
+
+        index = int(
+            np.argmax(
+                prediction_values
+            )
+        )
+
+
+        # -------------------------------------------------
+        # Confidence
+        # -------------------------------------------------
+
+        confidence = float(
+            prediction_values[index] * 100
+        )
+
+
+        # -------------------------------------------------
+        # Class name
+        # -------------------------------------------------
+
+        prediction_name = classes[index]
+
 
         print(
-            "Classification probabilities:",
-            predictions
+            "Prediction:",
+            prediction_name
         )
+
+        print(
+            "Confidence:",
+            round(
+                confidence,
+                2
+            )
+        )
+
 
     except Exception as e:
 
@@ -432,65 +660,99 @@ def predict():
             repr(e)
         )
 
-        classifier = None
-        predictions = None
 
-        del img_array
+        # Cleanup
+        try:
+            del classifier
+        except Exception:
+            pass
+
+        try:
+            del classifier_output
+        except Exception:
+            pass
+
+        try:
+            del prediction_values
+        except Exception:
+            pass
+
+        try:
+            del img_array
+        except Exception:
+            pass
 
         clear_tensorflow_memory()
 
+
         return render_template(
             "index.html",
-            error="The classification process failed. Please try again."
+            error=(
+                "The classification process "
+                "failed. Please try again."
+            )
         )
 
-    # -----------------------------------------------------
-    # Get Prediction
-    # -----------------------------------------------------
 
-    index = int(
-        np.argmax(
-            predictions
-        )
-    )
-
-    confidence = float(
-        predictions[index] * 100
-    )
-
-    prediction_name = classes[index]
+    # =====================================================
+    # RESULT IMAGE PATH
+    # =====================================================
 
     image_path = (
         "/static/uploads/"
         + unique_filename
     )
 
+
     # =====================================================
-    # IMPORTANT:
-    # DELETE B1 MODEL AFTER PREDICTION
+    # CLEANUP CLASSIFIER
     # =====================================================
 
-    del classifier
-    del predictions
-    del img_array
+    try:
+        del classifier
+    except Exception:
+        pass
+
+    try:
+        del classifier_output
+    except Exception:
+        pass
+
+    try:
+        del prediction_values
+    except Exception:
+        pass
+
+    try:
+        del img_array
+    except Exception:
+        pass
 
     clear_tensorflow_memory()
 
+
     # =====================================================
-    # Return Result
+    # RETURN RESULT
     # =====================================================
 
     return render_template(
         "index.html",
+
         prediction=prediction_name,
+
         confidence=round(
             confidence,
             2
         ),
+
         image_path=image_path,
+
         patient_name=patient_name,
+
         patient_age=patient_age,
+
         patient_place=patient_place,
+
         unsupported_image=False
     )
 
@@ -504,7 +766,13 @@ def request_entity_too_large(error):
 
     return render_template(
         "index.html",
-        error="Image is too large. Please upload an image smaller than 10 MB."
+
+        error=(
+            "Image is too large. "
+            "Please upload an image "
+            "smaller than 10 MB."
+        )
+
     ), 413
 
 
@@ -529,11 +797,13 @@ if __name__ == "__main__":
 
     app.run(
         host="0.0.0.0",
+
         port=int(
             os.environ.get(
                 "PORT",
                 5000
             )
         ),
+
         debug=False
     )
