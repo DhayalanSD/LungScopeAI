@@ -301,13 +301,13 @@ Actual Squamous        1      0       0      37
 
 ### Accuracy Graph
 
-![Accuracy Graph](outputs/accuracy.png)
+![Accuracy Graph](screenshots/accuracy.png)
 
 ---
 
 ### Confusion Matrix
 
-![Confusion Matrix](outputs/confusion_matrix.png)
+![Confusion Matrix](screenshots/confusion_matrix.png)
 
 ---
 
