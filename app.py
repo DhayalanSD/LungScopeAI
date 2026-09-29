@@ -2,6 +2,9 @@ from flask import Flask, render_template, request
 from werkzeug.utils import secure_filename
 
 import tensorflow as tf
+# Limit TensorFlow resource usage on Render
+tf.config.threading.set_intra_op_parallelism_threads(1)
+tf.config.threading.set_inter_op_parallelism_threads(1)
 from tensorflow.keras.preprocessing import image
 from tensorflow.keras.applications.efficientnet import preprocess_input
 
