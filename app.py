@@ -1,20 +1,33 @@
 from flask import Flask, render_template, request
 from werkzeug.utils import secure_filename
 
+import os
+import uuid
+import gc
+
+import numpy as np
 import tensorflow as tf
-# Limit TensorFlow resource usage on Render
-tf.config.threading.set_intra_op_parallelism_threads(1)
-tf.config.threading.set_inter_op_parallelism_threads(1)
+
 from tensorflow.keras.preprocessing import image
 from tensorflow.keras.applications.efficientnet import preprocess_input
 
-import numpy as np
-import os
-import uuid
+
+# =========================================================
+# TensorFlow Configuration
+# =========================================================
+
+# Keep TensorFlow resource usage low on Render.
+try:
+    tf.config.set_visible_devices([], "GPU")
+except Exception:
+    pass
+
+tf.config.threading.set_intra_op_parallelism_threads(1)
+tf.config.threading.set_inter_op_parallelism_threads(1)
 
 
 # =========================================================
-# Flask App
+# Flask Application
 # =========================================================
 
 app = Flask(__name__)
@@ -30,6 +43,9 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
+# Maximum upload size: 10 MB
+app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024
+
 
 # =========================================================
 # Model Configuration
@@ -40,28 +56,10 @@ VALIDATOR_MODEL_PATH = "models/lung_ct_validator.keras"
 
 IMG_SIZE = 224
 
-# Validator threshold
-# Class 0 = lung_ct
-# Class 1 = not_lung_ct
+# Validator class:
+# 0 = lung CT
+# 1 = not lung CT
 VALIDATOR_THRESHOLD = 0.50
-
-
-# =========================================================
-# Load Models
-# =========================================================
-
-print("Loading LungScopeAI models...")
-
-model = tf.keras.models.load_model(
-    CLASSIFIER_MODEL_PATH
-)
-
-validator_model = tf.keras.models.load_model(
-    VALIDATOR_MODEL_PATH
-)
-
-print("Classification model loaded.")
-print("Lung CT validator loaded.")
 
 
 # =========================================================
@@ -74,6 +72,79 @@ classes = [
     "normal",
     "squamous.cell.carcinoma"
 ]
+
+
+# =========================================================
+# Model Variables
+# =========================================================
+
+validator_model = None
+classifier_model = None
+
+
+# =========================================================
+# Load Validator Model
+# =========================================================
+
+def load_validator():
+    global validator_model
+
+    if validator_model is None:
+        print("Loading Lung CT validator...")
+
+        validator_model = tf.keras.models.load_model(
+            VALIDATOR_MODEL_PATH,
+            compile=False
+        )
+
+        print("Lung CT validator loaded.")
+
+    return validator_model
+
+
+# =========================================================
+# Load Classification Model
+# =========================================================
+
+def load_classifier():
+    global classifier_model
+
+    if classifier_model is None:
+        print("Loading EfficientNetB1 classification model...")
+
+        classifier_model = tf.keras.models.load_model(
+            CLASSIFIER_MODEL_PATH,
+            compile=False
+        )
+
+        print("EfficientNetB1 classification model loaded.")
+
+    return classifier_model
+
+
+# =========================================================
+# Image Preprocessing
+# =========================================================
+
+def prepare_image(filepath):
+
+    img = image.load_img(
+        filepath,
+        target_size=(IMG_SIZE, IMG_SIZE)
+    )
+
+    img_array = image.img_to_array(img)
+
+    img_array = np.expand_dims(
+        img_array,
+        axis=0
+    )
+
+    img_array = preprocess_input(
+        img_array
+    )
+
+    return img_array
 
 
 # =========================================================
@@ -96,7 +167,7 @@ def home():
 def predict():
 
     # -----------------------------------------------------
-    # Check image
+    # Check uploaded file
     # -----------------------------------------------------
 
     if "image" not in request.files:
@@ -106,9 +177,7 @@ def predict():
             error="No image was uploaded."
         )
 
-
     file = request.files["image"]
-
 
     if file.filename == "":
 
@@ -117,9 +186,8 @@ def predict():
             error="Please select an image."
         )
 
-
     # -----------------------------------------------------
-    # Get patient information
+    # Patient Information
     # -----------------------------------------------------
 
     patient_name = request.form.get(
@@ -137,9 +205,8 @@ def predict():
         ""
     ).strip()
 
-
     # -----------------------------------------------------
-    # Validate image extension
+    # Validate File Extension
     # -----------------------------------------------------
 
     allowed_extensions = {
@@ -152,12 +219,18 @@ def predict():
         file.filename
     )
 
+    if "." not in original_filename:
+
+        return render_template(
+            "index.html",
+            error="Invalid image file."
+        )
+
     extension = (
         original_filename
         .rsplit(".", 1)[-1]
         .lower()
     )
-
 
     if extension not in allowed_extensions:
 
@@ -166,9 +239,8 @@ def predict():
             error="Only PNG, JPG and JPEG images are allowed."
         )
 
-
     # -----------------------------------------------------
-    # Create unique filename
+    # Create Unique Filename
     # -----------------------------------------------------
 
     unique_filename = (
@@ -177,91 +249,97 @@ def predict():
         + extension
     )
 
-
     filepath = os.path.join(
         app.config["UPLOAD_FOLDER"],
         unique_filename
     )
 
-
     # -----------------------------------------------------
-    # Save image
-    # -----------------------------------------------------
-
-    file.save(filepath)
-
-
-    # -----------------------------------------------------
-    # Load image
+    # Save Image
     # -----------------------------------------------------
 
     try:
 
-        img = image.load_img(
-            filepath,
-            target_size=(IMG_SIZE, IMG_SIZE)
+        file.save(filepath)
+
+    except Exception as e:
+
+        print(
+            "File save error:",
+            repr(e)
         )
 
-    except Exception:
+        return render_template(
+            "index.html",
+            error="The uploaded image could not be saved."
+        )
+
+    # -----------------------------------------------------
+    # Prepare Image
+    # -----------------------------------------------------
+
+    try:
+
+        img_array = prepare_image(
+            filepath
+        )
+
+    except Exception as e:
+
+        print(
+            "Image processing error:",
+            repr(e)
+        )
+
+        try:
+
+            if os.path.exists(filepath):
+                os.remove(filepath)
+
+        except Exception:
+            pass
 
         return render_template(
             "index.html",
             error="The uploaded file could not be processed as an image."
         )
 
-
     # -----------------------------------------------------
-    # Convert image to array
-    # -----------------------------------------------------
-
-    img_array = image.img_to_array(
-        img
-    )
-
-
-    # -----------------------------------------------------
-    # Add batch dimension
+    # STEP 1
+    # Lung CT Validation
     # -----------------------------------------------------
 
-    img_array = np.expand_dims(
-        img_array,
-        axis=0
-    )
+    try:
 
+        validator = load_validator()
 
-    # -----------------------------------------------------
-    # EfficientNet preprocessing
-    # -----------------------------------------------------
+        validator_prediction = validator(
+            img_array,
+            training=False
+        )
 
-    img_array = preprocess_input(
-        img_array
-    )
+        validator_prediction = np.asarray(
+            validator_prediction
+        )
 
+        not_lung_ct_score = float(
+            validator_prediction[0][0]
+        )
 
-    # =====================================================
-    # STEP 1 — LUNG CT IMAGE VALIDATION
-    # =====================================================
+    except Exception as e:
 
-    validator_prediction = validator_model.predict(
-        img_array,
-        verbose=0
-    )
+        print(
+            "Validator error:",
+            repr(e)
+        )
 
-    # The validator was trained with:
-    #
-    # class 0 = lung_ct
-    # class 1 = not_lung_ct
-    #
-    # Therefore sigmoid output represents:
-    # probability/score of NOT being a lung CT.
-
-    not_lung_ct_score = float(
-        validator_prediction[0][0]
-    )
-
+        return render_template(
+            "index.html",
+            error="The image validation process failed. Please try again."
+        )
 
     # -----------------------------------------------------
-    # Unsupported Image
+    # Reject Non-Lung CT Image
     # -----------------------------------------------------
 
     if not_lung_ct_score >= VALIDATOR_THRESHOLD:
@@ -271,105 +349,139 @@ def predict():
             + unique_filename
         )
 
+        gc.collect()
+
         return render_template(
             "index.html",
-
             unsupported_image=True,
-
             validator_score=round(
                 not_lung_ct_score * 100,
                 2
             ),
-
             image_path=image_path,
-
             patient_name=patient_name,
-
             patient_age=patient_age,
-
             patient_place=patient_place
         )
 
+    # -----------------------------------------------------
+    # STEP 2
+    # Lung Cancer Classification
+    # -----------------------------------------------------
 
-    # =====================================================
-    # STEP 2 — 4-CLASS LUNG IMAGE CLASSIFICATION
-    # =====================================================
+    try:
 
-    predictions = model.predict(
-        img_array,
-        verbose=0
-    )
+        classifier = load_classifier()
 
+        predictions = classifier(
+            img_array,
+            training=False
+        )
+
+        predictions = np.asarray(
+            predictions
+        )[0]
+
+    except Exception as e:
+
+        print(
+            "Classification error:",
+            repr(e)
+        )
+
+        return render_template(
+            "index.html",
+            error="The classification process failed. Please try again."
+        )
 
     # -----------------------------------------------------
-    # Get predicted class
+    # Get Prediction
     # -----------------------------------------------------
 
     index = int(
         np.argmax(
-            predictions[0]
+            predictions
         )
     )
 
-
-    # -----------------------------------------------------
-    # Confidence
-    # -----------------------------------------------------
-
     confidence = float(
-        predictions[0][index] * 100
+        predictions[index] * 100
     )
 
-
-    # -----------------------------------------------------
-    # Prediction name
-    # -----------------------------------------------------
-
     prediction_name = classes[index]
-
-
-    # -----------------------------------------------------
-    # Image URL
-    # -----------------------------------------------------
 
     image_path = (
         "/static/uploads/"
         + unique_filename
     )
 
+    # -----------------------------------------------------
+    # Clean Memory
+    # -----------------------------------------------------
 
-    # =====================================================
-    # STEP 3 — RENDER RESULT
-    # =====================================================
+    del img_array
+    del predictions
+
+    gc.collect()
+
+    # -----------------------------------------------------
+    # Return Result
+    # -----------------------------------------------------
 
     return render_template(
         "index.html",
-
         prediction=prediction_name,
-
         confidence=round(
             confidence,
             2
         ),
-
         image_path=image_path,
-
         patient_name=patient_name,
-
         patient_age=patient_age,
-
         patient_place=patient_place,
-
         unsupported_image=False
     )
 
 
 # =========================================================
-# Run Application
+# File Too Large Error
+# =========================================================
+
+@app.errorhandler(413)
+def request_entity_too_large(error):
+
+    return render_template(
+        "index.html",
+        error="Image is too large. Please upload an image smaller than 10 MB."
+    ), 413
+
+
+# =========================================================
+# Health Check
+# =========================================================
+
+@app.route("/health")
+def health():
+
+    return {
+        "status": "ok",
+        "service": "LungScopeAI"
+    }, 200
+
+
+# =========================================================
+# Start Application
 # =========================================================
 
 if __name__ == "__main__":
 
     app.run(
-        debug=True
+        host="0.0.0.0",
+        port=int(
+            os.environ.get(
+                "PORT",
+                5000
+            )
+        ),
+        debug=False
     )
