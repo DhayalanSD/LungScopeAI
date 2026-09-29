@@ -16,12 +16,13 @@ from tensorflow.keras.applications.efficientnet import preprocess_input
 # TensorFlow Configuration
 # =========================================================
 
-# Keep TensorFlow resource usage low on Render.
+# Disable GPU usage on Render.
 try:
     tf.config.set_visible_devices([], "GPU")
 except Exception:
     pass
 
+# Limit CPU thread usage.
 tf.config.threading.set_intra_op_parallelism_threads(1)
 tf.config.threading.set_inter_op_parallelism_threads(1)
 
@@ -39,11 +40,14 @@ app = Flask(__name__)
 
 UPLOAD_FOLDER = "static/uploads"
 
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+os.makedirs(
+    UPLOAD_FOLDER,
+    exist_ok=True
+)
 
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
-# Maximum upload size: 10 MB
+# Maximum upload size = 10 MB
 app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024
 
 
@@ -52,18 +56,16 @@ app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024
 # =========================================================
 
 CLASSIFIER_MODEL_PATH = "models/best_b1_model.keras"
+
 VALIDATOR_MODEL_PATH = "models/lung_ct_validator.keras"
 
 IMG_SIZE = 224
 
-# Validator class:
-# 0 = lung CT
-# 1 = not lung CT
 VALIDATOR_THRESHOLD = 0.50
 
 
 # =========================================================
-# Classification Classes
+# Classes
 # =========================================================
 
 classes = [
@@ -75,55 +77,23 @@ classes = [
 
 
 # =========================================================
-# Model Variables
+# Memory Cleanup
 # =========================================================
 
-validator_model = None
-classifier_model = None
+def clear_tensorflow_memory():
 
+    gc.collect()
 
-# =========================================================
-# Load Validator Model
-# =========================================================
+    try:
+        tf.keras.backend.clear_session()
+    except Exception:
+        pass
 
-def load_validator():
-    global validator_model
-
-    if validator_model is None:
-        print("Loading Lung CT validator...")
-
-        validator_model = tf.keras.models.load_model(
-            VALIDATOR_MODEL_PATH,
-            compile=False
-        )
-
-        print("Lung CT validator loaded.")
-
-    return validator_model
+    gc.collect()
 
 
 # =========================================================
-# Load Classification Model
-# =========================================================
-
-def load_classifier():
-    global classifier_model
-
-    if classifier_model is None:
-        print("Loading EfficientNetB1 classification model...")
-
-        classifier_model = tf.keras.models.load_model(
-            CLASSIFIER_MODEL_PATH,
-            compile=False
-        )
-
-        print("EfficientNetB1 classification model loaded.")
-
-    return classifier_model
-
-
-# =========================================================
-# Image Preprocessing
+# Image Preparation
 # =========================================================
 
 def prepare_image(filepath):
@@ -133,7 +103,9 @@ def prepare_image(filepath):
         target_size=(IMG_SIZE, IMG_SIZE)
     )
 
-    img_array = image.img_to_array(img)
+    img_array = image.img_to_array(
+        img
+    )
 
     img_array = np.expand_dims(
         img_array,
@@ -148,7 +120,43 @@ def prepare_image(filepath):
 
 
 # =========================================================
-# Home Page
+# Load Validator
+# =========================================================
+
+def load_validator():
+
+    print("Loading Lung CT validator...")
+
+    validator = tf.keras.models.load_model(
+        VALIDATOR_MODEL_PATH,
+        compile=False
+    )
+
+    print("Lung CT validator loaded.")
+
+    return validator
+
+
+# =========================================================
+# Load Classifier
+# =========================================================
+
+def load_classifier():
+
+    print("Loading EfficientNetB1 classifier...")
+
+    classifier = tf.keras.models.load_model(
+        CLASSIFIER_MODEL_PATH,
+        compile=False
+    )
+
+    print("EfficientNetB1 classifier loaded.")
+
+    return classifier
+
+
+# =========================================================
+# Home
 # =========================================================
 
 @app.route("/")
@@ -163,11 +171,14 @@ def home():
 # Prediction
 # =========================================================
 
-@app.route("/predict", methods=["POST"])
+@app.route(
+    "/predict",
+    methods=["POST"]
+)
 def predict():
 
     # -----------------------------------------------------
-    # Check uploaded file
+    # Check image
     # -----------------------------------------------------
 
     if "image" not in request.files:
@@ -206,7 +217,7 @@ def predict():
     ).strip()
 
     # -----------------------------------------------------
-    # Validate File Extension
+    # File Validation
     # -----------------------------------------------------
 
     allowed_extensions = {
@@ -240,7 +251,7 @@ def predict():
         )
 
     # -----------------------------------------------------
-    # Create Unique Filename
+    # Unique Filename
     # -----------------------------------------------------
 
     unique_filename = (
@@ -304,10 +315,12 @@ def predict():
             error="The uploaded file could not be processed as an image."
         )
 
-    # -----------------------------------------------------
+    # =====================================================
     # STEP 1
-    # Lung CT Validation
-    # -----------------------------------------------------
+    # LOAD VALIDATOR ONLY
+    # =====================================================
+
+    validator = None
 
     try:
 
@@ -326,6 +339,11 @@ def predict():
             validator_prediction[0][0]
         )
 
+        print(
+            "Validator score:",
+            not_lung_ct_score
+        )
+
     except Exception as e:
 
         print(
@@ -333,14 +351,29 @@ def predict():
             repr(e)
         )
 
+        validator = None
+
+        clear_tensorflow_memory()
+
         return render_template(
             "index.html",
             error="The image validation process failed. Please try again."
         )
 
-    # -----------------------------------------------------
-    # Reject Non-Lung CT Image
-    # -----------------------------------------------------
+    # =====================================================
+    # IMPORTANT:
+    # DELETE VALIDATOR BEFORE LOADING B1
+    # =====================================================
+
+    del validator
+    del validator_prediction
+
+    clear_tensorflow_memory()
+
+    # =====================================================
+    # STEP 1 RESULT
+    # NON-LUNG CT IMAGE
+    # =====================================================
 
     if not_lung_ct_score >= VALIDATOR_THRESHOLD:
 
@@ -349,7 +382,9 @@ def predict():
             + unique_filename
         )
 
-        gc.collect()
+        del img_array
+
+        clear_tensorflow_memory()
 
         return render_template(
             "index.html",
@@ -364,10 +399,13 @@ def predict():
             patient_place=patient_place
         )
 
-    # -----------------------------------------------------
+    # =====================================================
     # STEP 2
-    # Lung Cancer Classification
-    # -----------------------------------------------------
+    # LOAD B1 CLASSIFIER ONLY
+    # =====================================================
+
+    classifier = None
+    predictions = None
 
     try:
 
@@ -382,12 +420,24 @@ def predict():
             predictions
         )[0]
 
+        print(
+            "Classification probabilities:",
+            predictions
+        )
+
     except Exception as e:
 
         print(
             "Classification error:",
             repr(e)
         )
+
+        classifier = None
+        predictions = None
+
+        del img_array
+
+        clear_tensorflow_memory()
 
         return render_template(
             "index.html",
@@ -415,18 +465,20 @@ def predict():
         + unique_filename
     )
 
-    # -----------------------------------------------------
-    # Clean Memory
-    # -----------------------------------------------------
+    # =====================================================
+    # IMPORTANT:
+    # DELETE B1 MODEL AFTER PREDICTION
+    # =====================================================
 
-    del img_array
+    del classifier
     del predictions
+    del img_array
 
-    gc.collect()
+    clear_tensorflow_memory()
 
-    # -----------------------------------------------------
+    # =====================================================
     # Return Result
-    # -----------------------------------------------------
+    # =====================================================
 
     return render_template(
         "index.html",
@@ -444,7 +496,7 @@ def predict():
 
 
 # =========================================================
-# File Too Large Error
+# File Too Large
 # =========================================================
 
 @app.errorhandler(413)
