@@ -1,44 +1,177 @@
-# Python
-__pycache__/
+# ==========================================
+
+# LungScopeAI - Git Ignore
+
+# ==========================================
+
+# ------------------------------------------
+
+# Python cache
+
+# ------------------------------------------
+
+**pycache**/
 *.py[cod]
 *.pyo
+*.pyd
 
-# Virtual environment
+# ------------------------------------------
+
+# Virtual environments
+
+# ------------------------------------------
+
 venv/
 .venv/
+env/
+ENV/
 
-# VS Code
-.vscode/
+# ------------------------------------------
 
-# Training datasets
-dataset/
+# Environment variables / secrets
+
+# ------------------------------------------
+
+.env
+.env.*
+!.env.example
+
+# ------------------------------------------
+
+# Datasets - Do NOT upload
+
+# ------------------------------------------
+
+dataset_clean/
+dataset_clean_resplit/
 dataset_final/
-validator_dataset/
 validator_dataset_v2/
 
+# ------------------------------------------
+
 # Generated outputs
+
+# ------------------------------------------
+
 outputs/
 
-# Uploaded images
-static/uploads/*
+# ------------------------------------------
 
-# Local test images
+# Local testing files
+
+# ------------------------------------------
+
 test_image.jpg
 test_image.png
 
-# OS files
+# ------------------------------------------
+
+# Training and research scripts
+
+# ------------------------------------------
+
+train.py
+train_v1.py
+train_experiment.py
+train_experiment_100.py
+train_experiment_30.py
+train_experiment_b1.py
+train_validator.py
+
+rebuild_dataset.py
+rebuild_clean_dataset.py
+clean_dataset.py
+
+check_duplicates.py
+check_duplicate_splits.py
+check_near_duplicates.py
+
+prepare_validator_dataset.py
+download_small_negative_set.py
+evaluate.py
+predict.py
+predict_b1.py
+test_validator.py
+
+# ------------------------------------------
+
+# Local backup files
+
+# ------------------------------------------
+
+app_backup_b0_88_10.py
+
+# ------------------------------------------
+
+# Training reports
+
+# ------------------------------------------
+
+models/b1_report.txt
+models/*_report.txt
+
+# ------------------------------------------
+
+# Old / experimental models
+
+# ------------------------------------------
+
+models/best_model.keras
+models/best_model_88_10.keras
+models/lungscopeai_90_91.keras
+models/lung_effnet.keras
+models/lung_effnet_88_10.keras
+models/lung_effnet_90_91.keras
+models/experiments/
+
+# ------------------------------------------
+
+# IDE / editor files
+
+# ------------------------------------------
+
+.vscode/
+.idea/
+
+# ------------------------------------------
+
+# Operating system files
+
+# ------------------------------------------
+
 .DS_Store
 Thumbs.db
 
-# Training and dataset utility scripts
-check_duplicate_splits.py
-check_duplicates.py
-clean_dataset.py
-download_small_negative_set.py
-evaluate.py
-prepare_validator_dataset.py
-rebuild_dataset.py
-test_validator.py
-train.py
-train_validator.py
-predict.py
+# ------------------------------------------
+
+# Temporary / log files
+
+# ------------------------------------------
+
+*.log
+*.tmp
+*.temp
+
+# ------------------------------------------
+
+# Keep these production files tracked
+
+# ------------------------------------------
+
+# models/best_b1_model.keras
+
+# models/lung_ct_validator.keras
+
+# screenshots/
+
+# static/
+
+# templates/
+
+# app.py
+
+# README.md
+
+# Procfile
+
+# requirements.txt
